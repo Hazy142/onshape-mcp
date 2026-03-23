@@ -138,11 +138,8 @@ class TestExtrudeBuilder:
         assert len(entities_param["queries"]) > 0
 
         query = entities_param["queries"][0]
-        # The actual implementation uses "queryString" field with qSketchRegion
         assert query["btType"] == "BTMIndividualSketchRegionQuery-140"
-        assert "queryString" in query
-        assert sketch_id in query["queryString"]
-        assert "qSketchRegion" in query["queryString"]
+        assert query["featureId"] == sketch_id
 
     def test_build_includes_operation_type_parameter(self):
         """Test that build() includes operation type parameter."""
@@ -156,6 +153,32 @@ class TestExtrudeBuilder:
         assert op_param["btType"] == "BTMParameterEnum-145"
         assert op_param["value"] == "ADD"
 
+    def test_build_includes_body_type_parameter(self):
+        """Test that build() includes bodyType parameter."""
+        extrude = ExtrudeBuilder(sketch_feature_id="sketch1")
+
+        result = extrude.build()
+        parameters = result["feature"]["parameters"]
+
+        body_type = next(p for p in parameters if p["parameterId"] == "bodyType")
+
+        assert body_type["btType"] == "BTMParameterEnum-145"
+        assert body_type["enumName"] == "ExtendedToolBodyType"
+        assert body_type["value"] == "SOLID"
+
+    def test_build_includes_end_bound_parameter(self):
+        """Test that build() includes endBound parameter."""
+        extrude = ExtrudeBuilder(sketch_feature_id="sketch1")
+
+        result = extrude.build()
+        parameters = result["feature"]["parameters"]
+
+        end_bound = next(p for p in parameters if p["parameterId"] == "endBound")
+
+        assert end_bound["btType"] == "BTMParameterEnum-145"
+        assert end_bound["enumName"] == "BoundingType"
+        assert end_bound["value"] == "BLIND"
+
     def test_build_depth_parameter_without_variable(self):
         """Test depth parameter when no variable is set."""
         extrude = ExtrudeBuilder(sketch_feature_id="sketch1", depth=3.5)
@@ -167,7 +190,6 @@ class TestExtrudeBuilder:
 
         assert depth_param["btType"] == "BTMParameterQuantity-147"
         assert depth_param["expression"] == "3.5 in"
-        assert depth_param["value"] == 3.5
         assert depth_param["isInteger"] is False
 
     def test_build_depth_parameter_with_variable(self):
@@ -181,7 +203,6 @@ class TestExtrudeBuilder:
         depth_param = next(p for p in parameters if p["parameterId"] == "depth")
 
         assert depth_param["expression"] == "#part_depth"
-        assert depth_param["value"] == 2.0
 
     def test_build_includes_opposite_direction_parameter(self):
         """Test that build() includes oppositeDirection parameter."""
@@ -229,7 +250,7 @@ class TestExtrudeBuilder:
         assert result["feature"]["name"] == "CompleteExtrude"
 
         parameters = result["feature"]["parameters"]
-        assert len(parameters) == 4  # entities, operationType, depth, oppositeDirection
+        assert len(parameters) == 6  # bodyType, entities, operationType, endBound, depth, oppositeDirection
 
     def test_zero_depth(self):
         """Test handling zero depth."""
@@ -240,7 +261,7 @@ class TestExtrudeBuilder:
 
         depth_param = next(p for p in parameters if p["parameterId"] == "depth")
 
-        assert depth_param["value"] == 0
+        assert depth_param["expression"] == "0 in"
 
     def test_negative_depth(self):
         """Test handling negative depth."""
@@ -251,4 +272,4 @@ class TestExtrudeBuilder:
 
         depth_param = next(p for p in parameters if p["parameterId"] == "depth")
 
-        assert depth_param["value"] == -5.0
+        assert depth_param["expression"] == "-5.0 in"

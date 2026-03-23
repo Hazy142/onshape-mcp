@@ -127,6 +127,58 @@ class TestSketchBuilder:
         assert "#width" in expressions
         assert "#height" in expressions
 
+    def test_add_rectangle_centered_on_origin_with_variables(self):
+        """Test centering constraints use half-variable expressions on Top plane."""
+        sketch = SketchBuilder(plane=SketchPlane.TOP)
+        sketch.add_rectangle(
+            corner1=(-5, -2.5),
+            corner2=(5, 2.5),
+            variable_width="width",
+            variable_height="height",
+            center_on_origin=True,
+        )
+
+        distance_constraints = [c for c in sketch.constraints if c["constraintType"] == "DISTANCE"]
+        assert len(distance_constraints) == 2
+
+        x_constraint = next(c for c in distance_constraints if c["entityId"].endswith("center_x"))
+        y_constraint = next(c for c in distance_constraints if c["entityId"].endswith("center_y"))
+
+        x_query = next(p for p in x_constraint["parameters"] if p["parameterId"] == "externalFirst")
+        y_query = next(p for p in y_constraint["parameters"] if p["parameterId"] == "externalFirst")
+        x_length = next(p for p in x_constraint["parameters"] if p["parameterId"] == "length")
+        y_length = next(p for p in y_constraint["parameters"] if p["parameterId"] == "length")
+
+        assert x_query["queries"][0]["deterministicIds"] == ["JEC"]
+        assert y_query["queries"][0]["deterministicIds"] == ["JCC"]
+        assert x_length["expression"] == "#width/2"
+        assert y_length["expression"] == "#height/2"
+
+    def test_add_rectangle_centered_on_origin_without_variables(self):
+        """Test centering constraints fall back to numeric half dimensions."""
+        sketch = SketchBuilder(plane=SketchPlane.FRONT)
+        sketch.add_rectangle(
+            corner1=(-10, -5),
+            corner2=(10, 5),
+            center_on_origin=True,
+        )
+
+        distance_constraints = [c for c in sketch.constraints if c["constraintType"] == "DISTANCE"]
+        assert len(distance_constraints) == 2
+
+        x_constraint = next(c for c in distance_constraints if c["entityId"].endswith("center_x"))
+        y_constraint = next(c for c in distance_constraints if c["entityId"].endswith("center_y"))
+
+        x_query = next(p for p in x_constraint["parameters"] if p["parameterId"] == "externalFirst")
+        y_query = next(p for p in y_constraint["parameters"] if p["parameterId"] == "externalFirst")
+        x_length = next(p for p in x_constraint["parameters"] if p["parameterId"] == "length")
+        y_length = next(p for p in y_constraint["parameters"] if p["parameterId"] == "length")
+
+        assert x_query["queries"][0]["deterministicIds"] == ["JEC"]
+        assert y_query["queries"][0]["deterministicIds"] == ["JDC"]
+        assert x_length["expression"] == "10.0 in"
+        assert y_length["expression"] == "5.0 in"
+
     def test_method_chaining(self):
         """Test that builder methods can be chained."""
         sketch = SketchBuilder(name="Chained").add_rectangle((0, 0), (10, 5))

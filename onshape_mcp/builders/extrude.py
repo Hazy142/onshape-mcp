@@ -84,15 +84,20 @@ class ExtrudeBuilder:
                 "namespace": "",
                 "parameters": [
                     {
+                        "btType": "BTMParameterEnum-145",
+                        "namespace": "",
+                        "enumName": "ExtendedToolBodyType",
+                        "value": "SOLID",
+                        "parameterId": "bodyType",
+                        "parameterName": "",
+                        "libraryRelationType": "NONE",
+                    },
+                    {
                         "btType": "BTMParameterQueryList-148",
                         "queries": [
                             {
                                 "btType": "BTMIndividualSketchRegionQuery-140",
-                                "queryStatement": None,
-                                "filterInnerLoops": True,
-                                "queryString": f'query = qSketchRegion(id + "{self.sketch_feature_id}", true);',
                                 "featureId": self.sketch_feature_id,
-                                "deterministicIds": [],
                             }
                         ],
                         "parameterId": "entities",
@@ -109,10 +114,17 @@ class ExtrudeBuilder:
                         "libraryRelationType": "NONE",
                     },
                     {
+                        "btType": "BTMParameterEnum-145",
+                        "namespace": "",
+                        "enumName": "BoundingType",
+                        "value": "BLIND",
+                        "parameterId": "endBound",
+                        "parameterName": "",
+                        "libraryRelationType": "NONE",
+                    },
+                    {
                         "btType": "BTMParameterQuantity-147",
                         "isInteger": False,
-                        "value": self.depth,
-                        "units": "",
                         "expression": depth_expression,
                         "parameterId": "depth",
                         "parameterName": "",

@@ -48,8 +48,13 @@ class TestVariableManager:
     async def test_get_variables_success(
         self, variable_manager, onshape_client, sample_document_ids, sample_variables
     ):
-        """Test getting variables from a Part Studio."""
-        onshape_client.get = AsyncMock(return_value=sample_variables)
+        """Test getting variables from a Variable Studio response."""
+        onshape_client.get = AsyncMock(
+            side_effect=[
+                [{"id": sample_document_ids["element_id"], "elementType": "VARIABLESTUDIO"}],
+                [{"variableStudioReference": None, "variables": sample_variables}],
+            ]
+        )
 
         result = await variable_manager.get_variables(
             sample_document_ids["document_id"],
@@ -70,7 +75,7 @@ class TestVariableManager:
         assert result[1].expression == "5 in"
 
         # Verify correct path
-        call_args = onshape_client.get.call_args
+        call_args = onshape_client.get.call_args_list[1]
         path = call_args[0][0]
         assert "/variables" in path
 
@@ -79,7 +84,12 @@ class TestVariableManager:
         self, variable_manager, onshape_client, sample_document_ids
     ):
         """Test getting variables when none exist."""
-        onshape_client.get = AsyncMock(return_value=[])
+        onshape_client.get = AsyncMock(
+            side_effect=[
+                [{"id": sample_document_ids["element_id"], "elementType": "VARIABLESTUDIO"}],
+                [],
+            ]
+        )
 
         result = await variable_manager.get_variables(
             sample_document_ids["document_id"],
@@ -100,7 +110,12 @@ class TestVariableManager:
             {"name": "var2"},  # Missing expression
         ]
 
-        onshape_client.get = AsyncMock(return_value=variables_data)
+        onshape_client.get = AsyncMock(
+            side_effect=[
+                [{"id": sample_document_ids["element_id"], "elementType": "VARIABLESTUDIO"}],
+                [{"variableStudioReference": None, "variables": variables_data}],
+            ]
+        )
 
         result = await variable_manager.get_variables(
             sample_document_ids["document_id"],
@@ -114,10 +129,54 @@ class TestVariableManager:
         assert result[2].expression == ""
 
     @pytest.mark.asyncio
+    async def test_get_variables_reads_part_studio_assign_variable_features(
+        self, variable_manager, onshape_client, sample_document_ids
+    ):
+        """Test Part Studio variables are read from assignVariable features."""
+        onshape_client.get = AsyncMock(
+            side_effect=[
+                [{"id": sample_document_ids["element_id"], "elementType": "PARTSTUDIO"}],
+                {
+                    "features": [
+                        {
+                            "featureType": "assignVariable",
+                            "parameters": [
+                                {"parameterId": "name", "value": "width"},
+                                {"parameterId": "value", "expression": "240 mm"},
+                            ],
+                        },
+                        {
+                            "featureType": "extrude",
+                            "parameters": [],
+                        },
+                    ]
+                },
+            ]
+        )
+
+        result = await variable_manager.get_variables(
+            sample_document_ids["document_id"],
+            sample_document_ids["workspace_id"],
+            sample_document_ids["element_id"],
+        )
+
+        assert len(result) == 1
+        assert result[0].name == "width"
+        assert result[0].expression == "240 mm"
+
+        call_args = onshape_client.get.call_args_list[1]
+        path = call_args[0][0]
+        assert "/partstudios/" in path
+        assert path.endswith("/features")
+
+    @pytest.mark.asyncio
     async def test_set_variable_with_description(
         self, variable_manager, onshape_client, sample_document_ids
     ):
-        """Test setting a variable with description."""
+        """Test setting a Variable Studio variable with description."""
+        onshape_client.get = AsyncMock(
+            return_value=[{"id": sample_document_ids["element_id"], "elementType": "VARIABLESTUDIO"}]
+        )
         onshape_client.post = AsyncMock(return_value={"success": True})
 
         result = await variable_manager.set_variable(
@@ -143,7 +202,10 @@ class TestVariableManager:
     async def test_set_variable_without_description(
         self, variable_manager, onshape_client, sample_document_ids
     ):
-        """Test setting a variable without description."""
+        """Test setting a Variable Studio variable without description."""
+        onshape_client.get = AsyncMock(
+            return_value=[{"id": sample_document_ids["element_id"], "elementType": "VARIABLESTUDIO"}]
+        )
         onshape_client.post = AsyncMock(return_value={"success": True})
 
         await variable_manager.set_variable(
@@ -166,7 +228,10 @@ class TestVariableManager:
     async def test_set_variable_updates_existing(
         self, variable_manager, onshape_client, sample_document_ids
     ):
-        """Test updating an existing variable."""
+        """Test setting a Variable Studio variable remains supported."""
+        onshape_client.get = AsyncMock(
+            return_value=[{"id": sample_document_ids["element_id"], "elementType": "VARIABLESTUDIO"}]
+        )
         onshape_client.post = AsyncMock(return_value={"updated": True})
 
         result = await variable_manager.set_variable(
@@ -179,6 +244,81 @@ class TestVariableManager:
         )
 
         assert result == {"updated": True}
+
+    @pytest.mark.asyncio
+    async def test_set_variable_creates_part_studio_assign_variable_feature(
+        self, variable_manager, onshape_client, sample_document_ids
+    ):
+        """Test creating a new Part Studio variable via feature creation."""
+        onshape_client.get = AsyncMock(
+            side_effect=[
+                [{"id": sample_document_ids["element_id"], "elementType": "PARTSTUDIO"}],
+                {"features": []},
+            ]
+        )
+        onshape_client.post = AsyncMock(return_value={"featureState": {"featureStatus": "OK"}})
+
+        result = await variable_manager.set_variable(
+            sample_document_ids["document_id"],
+            sample_document_ids["workspace_id"],
+            sample_document_ids["element_id"],
+            "base_length",
+            "240 mm",
+            "Base plate length",
+        )
+
+        assert result == {"featureState": {"featureStatus": "OK"}}
+
+        call_args = onshape_client.post.call_args
+        path = call_args[0][0]
+        payload = call_args[1]["data"]
+        assert "/partstudios/" in path
+        assert path.endswith("/features")
+        assert payload["btType"] == "BTFeatureDefinitionCall-1406"
+        assert payload["feature"]["featureType"] == "assignVariable"
+        assert payload["feature"]["parameters"][0]["value"] == "base_length"
+        assert payload["feature"]["parameters"][1]["expression"] == "240 mm"
+
+    @pytest.mark.asyncio
+    async def test_set_variable_updates_existing_part_studio_assign_variable_feature(
+        self, variable_manager, onshape_client, sample_document_ids
+    ):
+        """Test updating an existing Part Studio variable via feature update."""
+        onshape_client.get = AsyncMock(
+            side_effect=[
+                [{"id": sample_document_ids["element_id"], "elementType": "PARTSTUDIO"}],
+                {
+                    "features": [
+                        {
+                            "featureId": "feat123",
+                            "featureType": "assignVariable",
+                            "parameters": [
+                                {"parameterId": "name", "value": "base_length"},
+                                {"parameterId": "value", "expression": "200 mm"},
+                            ],
+                        }
+                    ]
+                },
+            ]
+        )
+        onshape_client.post = AsyncMock(return_value={"updated": True})
+
+        result = await variable_manager.set_variable(
+            sample_document_ids["document_id"],
+            sample_document_ids["workspace_id"],
+            sample_document_ids["element_id"],
+            "base_length",
+            "240 mm",
+        )
+
+        assert result == {"updated": True}
+
+        call_args = onshape_client.post.call_args
+        path = call_args[0][0]
+        payload = call_args[1]["data"]
+        assert path.endswith("/features/featureid/feat123")
+        assert payload["feature"]["featureId"] == "feat123"
+        assert payload["feature"]["parameters"][1]["expression"] == "240 mm"
 
     @pytest.mark.asyncio
     async def test_get_configuration_definition_success(

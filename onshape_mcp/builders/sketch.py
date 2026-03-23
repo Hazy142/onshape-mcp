@@ -36,6 +36,19 @@ class SketchBuilder:
         self.constraints: List[Dict[str, Any]] = []
         self._entity_counter = 0
 
+    def _get_centering_plane_ids(self) -> Tuple[str, str]:
+        """Return standard plane IDs used to center sketch X/Y on the origin.
+
+        Returns:
+            Tuple of (x_reference_plane_id, y_reference_plane_id)
+        """
+        standard_plane_ids = {
+            SketchPlane.FRONT: ("JEC", "JDC"),  # Right, Top
+            SketchPlane.TOP: ("JEC", "JCC"),    # Right, Front
+            SketchPlane.RIGHT: ("JCC", "JDC"),  # Front, Top
+        }
+        return standard_plane_ids[self.plane]
+
     def _generate_entity_id(self, prefix: str = "entity") -> str:
         """Generate a unique entity ID.
 
@@ -54,6 +67,7 @@ class SketchBuilder:
         corner2: Tuple[float, float],
         variable_width: Optional[str] = None,
         variable_height: Optional[str] = None,
+        center_on_origin: bool = False,
     ) -> "SketchBuilder":
         """Add a rectangle to the sketch with proper Onshape format.
 
@@ -65,6 +79,8 @@ class SketchBuilder:
             corner2: Opposite corner (x, y) in inches
             variable_width: Optional variable name for width
             variable_height: Optional variable name for height
+            center_on_origin: Add distance constraints to keep the rectangle
+                centered on the global origin using the default reference planes
 
         Returns:
             Self for chaining
@@ -352,6 +368,77 @@ class SketchBuilder:
                             "value": "ALIGNED",
                             "enumName": "DimensionAlignment",
                             "parameterId": "alignment",
+                        },
+                    ],
+                }
+            )
+
+        if center_on_origin:
+            x_plane_id, y_plane_id = self._get_centering_plane_ids()
+            width_expression = (
+                f"#{variable_width}/2" if variable_width else f"{abs(x2 - x1) / 2} in"
+            )
+            height_expression = (
+                f"#{variable_height}/2" if variable_height else f"{abs(y2 - y1) / 2} in"
+            )
+
+            self.constraints.append(
+                {
+                    "btType": "BTMSketchConstraint-2",
+                    "constraintType": "DISTANCE",
+                    "entityId": f"{rect_id}.center_x",
+                    "parameters": [
+                        {
+                            "btType": "BTMParameterQueryList-148",
+                            "parameterId": "externalFirst",
+                            "queries": [
+                                {
+                                    "btType": "BTMIndividualQuery-138",
+                                    "deterministicIds": [x_plane_id],
+                                }
+                            ],
+                        },
+                        {
+                            "btType": "BTMParameterString-149",
+                            "value": right_id,
+                            "parameterId": "localSecond",
+                        },
+                        {
+                            "btType": "BTMParameterQuantity-147",
+                            "expression": width_expression,
+                            "parameterId": "length",
+                            "isInteger": False,
+                        },
+                    ],
+                }
+            )
+
+            self.constraints.append(
+                {
+                    "btType": "BTMSketchConstraint-2",
+                    "constraintType": "DISTANCE",
+                    "entityId": f"{rect_id}.center_y",
+                    "parameters": [
+                        {
+                            "btType": "BTMParameterQueryList-148",
+                            "parameterId": "externalFirst",
+                            "queries": [
+                                {
+                                    "btType": "BTMIndividualQuery-138",
+                                    "deterministicIds": [y_plane_id],
+                                }
+                            ],
+                        },
+                        {
+                            "btType": "BTMParameterString-149",
+                            "value": top_id,
+                            "parameterId": "localSecond",
+                        },
+                        {
+                            "btType": "BTMParameterQuantity-147",
+                            "expression": height_expression,
+                            "parameterId": "length",
+                            "isInteger": False,
                         },
                     ],
                 }

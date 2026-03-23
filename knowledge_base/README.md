@@ -7,7 +7,8 @@ This knowledge base provides comprehensive documentation for creating CAD expert
 ```
 knowledge_base/
 ├── api/                    # Onshape REST API documentation
-│   └── onshape_api_overview.md
+│   ├── onshape_api_overview.md
+│   └── onshape_workflows.md
 ├── cad/                    # CAD principles and best practices
 │   └── cad_best_practices.md
 ├── examples/               # Real-world design examples
@@ -116,6 +117,20 @@ Refer to these resources when:
 - ✅ Query types and references
 - ✅ Common patterns
 - ✅ Error handling
+
+**onshape_workflows.md**
+- Practical workflow order for this repository
+- Part Studio, sketch, extrude, assembly, drawing, and export flows
+- Confirmed live-safe paths versus known blockers
+- Variable Studio and Part Studio variable handling status
+- Debugging sequence for live Onshape failures
+
+**What It Covers:**
+- ✅ End-to-end operational workflow
+- ✅ Live-verified API behavior
+- ✅ Repo-specific implementation status
+- ✅ Recommended order of execution
+- ✅ Known limitations and mitigations
 
 ### `/cad` - CAD Principles
 

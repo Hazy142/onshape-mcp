@@ -123,11 +123,13 @@ class TestThickenBuilder:
         result = thicken.build()
 
         # Verify top-level structure
-        assert result["btType"] == "BTMFeature-134"
-        assert result["name"] == "BasicThicken"
-        assert result["featureType"] == "thicken"
-        assert result["suppressed"] is False
-        assert "parameters" in result
+        assert result["btType"] == "BTFeatureDefinitionCall-1406"
+        assert "feature" in result
+        assert result["feature"]["btType"] == "BTMFeature-134"
+        assert result["feature"]["name"] == "BasicThicken"
+        assert result["feature"]["featureType"] == "thicken"
+        assert result["feature"]["suppressed"] is False
+        assert "parameters" in result["feature"]
 
     def test_build_with_variable_thickness(self):
         """Test building thicken feature with variable thickness."""
@@ -135,13 +137,15 @@ class TestThickenBuilder:
         thicken.set_thickness(0.75, variable_name="wall_thickness")
 
         result = thicken.build()
-        parameters = result["parameters"]
+        parameters = result["feature"]["parameters"]
 
         # Find thickness parameter
         thickness_param = next(p for p in parameters if p["parameterId"] == "thickness1")
 
         assert thickness_param["btType"] == "BTMParameterQuantity-147"
         assert thickness_param["expression"] == "#wall_thickness"
+        assert thickness_param["value"] == 0.0
+        assert thickness_param["units"] == ""
 
     def test_build_with_literal_thickness_expression(self):
         """Test that literal thickness gets ' in' suffix."""
@@ -149,10 +153,11 @@ class TestThickenBuilder:
         thicken.set_thickness(1.25)
 
         result = thicken.build()
-        parameters = result["parameters"]
+        parameters = result["feature"]["parameters"]
 
         thickness_param = next(p for p in parameters if p["parameterId"] == "thickness1")
         assert thickness_param["expression"] == "1.25 in"
+        assert thickness_param["value"] == 1.25
 
     def test_build_includes_operation_type(self):
         """Test that build() includes operation type parameter."""
@@ -162,7 +167,7 @@ class TestThickenBuilder:
         thicken.set_thickness(0.5)
 
         result = thicken.build()
-        parameters = result["parameters"]
+        parameters = result["feature"]["parameters"]
 
         op_param = next(p for p in parameters if p["parameterId"] == "operationType")
 
@@ -177,7 +182,7 @@ class TestThickenBuilder:
         thicken.set_thickness(0.5)
 
         result = thicken.build()
-        parameters = result["parameters"]
+        parameters = result["feature"]["parameters"]
 
         entities_param = next(p for p in parameters if p["parameterId"] == "entities")
 
@@ -197,7 +202,7 @@ class TestThickenBuilder:
         thicken.set_thickness(0.5).set_midplane(True)
 
         result = thicken.build()
-        parameters = result["parameters"]
+        parameters = result["feature"]["parameters"]
 
         midplane_param = next(p for p in parameters if p["parameterId"] == "midplane")
 
@@ -210,7 +215,7 @@ class TestThickenBuilder:
         thicken.set_thickness(0.5).set_opposite_direction(True)
 
         result = thicken.build()
-        parameters = result["parameters"]
+        parameters = result["feature"]["parameters"]
 
         opposite_param = next(p for p in parameters if p["parameterId"] == "oppositeDirection")
 
@@ -223,7 +228,7 @@ class TestThickenBuilder:
         thicken.set_thickness(0.5)
 
         result = thicken.build()
-        parameters = result["parameters"]
+        parameters = result["feature"]["parameters"]
 
         midplane_param = next(p for p in parameters if p["parameterId"] == "midplane")
         assert midplane_param["value"] is False
@@ -234,7 +239,7 @@ class TestThickenBuilder:
         thicken.set_thickness(0.5)
 
         result = thicken.build()
-        parameters = result["parameters"]
+        parameters = result["feature"]["parameters"]
 
         opposite_param = next(p for p in parameters if p["parameterId"] == "oppositeDirection")
         assert opposite_param["value"] is False
@@ -245,12 +250,13 @@ class TestThickenBuilder:
         thicken.set_thickness(0.5)
 
         result = thicken.build()
-        parameters = result["parameters"]
+        parameters = result["feature"]["parameters"]
 
         thickness2_param = next(p for p in parameters if p["parameterId"] == "thickness2")
 
         assert thickness2_param["btType"] == "BTMParameterQuantity-147"
         assert thickness2_param["expression"] == "0 in"
+        assert thickness2_param["value"] == 0.0
 
     def test_build_complete_feature_with_all_options(self):
         """Test building a complete thicken feature with all options set."""
@@ -268,13 +274,14 @@ class TestThickenBuilder:
         result = thicken.build()
 
         # Verify structure
-        assert result["btType"] == "BTMFeature-134"
-        assert result["name"] == "CompleteThicken"
-        assert result["featureType"] == "thicken"
-        assert len(result["parameters"]) == 6
+        assert result["btType"] == "BTFeatureDefinitionCall-1406"
+        assert result["feature"]["btType"] == "BTMFeature-134"
+        assert result["feature"]["name"] == "CompleteThicken"
+        assert result["feature"]["featureType"] == "thicken"
+        assert len(result["feature"]["parameters"]) == 6
 
         # Verify all parameters are present
-        param_ids = [p["parameterId"] for p in result["parameters"]]
+        param_ids = [p["parameterId"] for p in result["feature"]["parameters"]]
         assert "operationType" in param_ids
         assert "entities" in param_ids
         assert "midplane" in param_ids

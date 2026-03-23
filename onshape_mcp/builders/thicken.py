@@ -89,8 +89,10 @@ class ThickenBuilder:
         # Determine thickness expression
         if self.thickness_variable:
             thickness_expr = f"#{self.thickness_variable}"
+            thickness_value = 0.0
         else:
             thickness_expr = f"{self.thickness_value} in"
+            thickness_value = self.thickness_value
 
         # Build the feature data
         feature = {
@@ -127,6 +129,9 @@ class ThickenBuilder:
                 },
                 {
                     "btType": "BTMParameterQuantity-147",
+                    "isInteger": False,
+                    "value": thickness_value,
+                    "units": "",
                     "expression": thickness_expr,
                     "parameterId": "thickness1",
                 },
@@ -137,10 +142,13 @@ class ThickenBuilder:
                 },
                 {
                     "btType": "BTMParameterQuantity-147",
+                    "isInteger": False,
+                    "value": 0.0,
+                    "units": "",
                     "expression": "0 in",
                     "parameterId": "thickness2",
                 },
             ],
         }
 
-        return feature
+        return {"btType": "BTFeatureDefinitionCall-1406", "feature": feature}
